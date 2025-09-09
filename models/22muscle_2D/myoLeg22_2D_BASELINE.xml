@@ -334,36 +334,36 @@
                 <geom mesh="torso_geom_3_hat_skull" name="torso_geom_3" rgba="1 1 1 1" type="mesh"/>
                 <geom mesh="torso_geom_4_hat_ribs" name="torso_geom_4" rgba="1 1 1 1" type="mesh"/>
 
-                <body name="r_clavicle" pos="-0.005 0.175 -1.095">
+                <body name="r_clavicle" pos="-0.001 0.175 -1.09">
                     <inertial pos="0.01 0.215 1.15" mass="0.156" diaginertia="0.00024259 0.00025526 4.442e-05"/>
-                    <geom type="mesh" mesh="r_clavicle" rgba="1 1 1 1"/>
+                    <geom type="mesh" mesh="r_clavicle" name="r_clavicle_geom" rgba="1 1 1 1"/>
                     
-                    <body name="r_scapula" pos="-0.15 0.0725 -0.125">
+                    <body name="r_scapula" pos="-0.145 0.0725 -0.125">
                         <inertial pos="0.095 0.09 1.35" mass="0.70396" diaginertia="0.0012429 0.0011504 0.0013651"/>
-                        <geom type="mesh" mesh="r_scapula" rgba="1 1 1 1"/>
+                        <geom type="mesh" mesh="r_scapula" name="r_scapula_geom" rgba="1 1 1 1"/>
                         
                         <body name="r_humerus" pos="0.165 0.12 1.385">
-                            <joint name="r_shoulder_abd" type="hinge" pos="0 0 0" axis="1 0 0" range="-2.0 2.0" damping="10000"/>
+                            <joint name="r_shoulder_abd" type="hinge" pos="0 0 0" axis="-1 0 0" range="-2.0 2.0" damping="10000"/>
                             <joint name="r_shoulder_rot" type="hinge" pos="0 0 0" axis="0 1 0" range="-2.0 2.0" damping="10000"/>
                             <joint name="r_shoulder_flex" type="hinge" pos="0 0 0" axis="0 0 1" range="-1.5 3.0" damping="10000"/>
                             <inertial pos="0.018064 -0.140141 -0.012746" mass="1.99757" diaginertia="0.0122776 0.00255133 0.0125789"/>
-                            <geom type="mesh" mesh="r_humerus" rgba="1 1 1 1"/>
+                            <geom type="mesh" mesh="r_humerus" name="r_humerus_geom" rgba="1 1 1 1"/>
 
                             <body name="r_ulna" pos="0 -0.4 -0.035" euler="0.1 0 0">
-                                <inertial pos="0.175 0.125 0.98" mass="1.1053" diaginertia="0.00541309 0.00115318 0.00494361"/>
-                                <joint name="r_elbow_flex" type="hinge" pos="0.015 0.11 0" axis="0 0 1" range="0 2" damping="10000"/>
-                                <geom type="mesh" mesh="r_ulna" rgba="1 1 1 1"/>
+                                <inertial pos="0 0 0" mass="0.55265" diaginertia="0.00306940 0.00063784 0.00314473"/>
+                                <joint name="r_elbow_flex" type="hinge" pos="0.015 0.11 -0.01" axis="0 0 1" range="0 2" damping="10000"/>
+                                <geom type="mesh" mesh="r_ulna" name="r_ulna_geom" rgba="1 1 1 1"/>
                                 
-                                <body name="r_radius" pos="0.0295 -0.013 0.022" euler="0 0 -0.075">
-                                    <inertial pos="0.175 0.125 0.98" mass="1.1053" diaginertia="0.00541309 0.00115318 0.00494361"/>
-                                    <joint name="r_wrist_rot" type="hinge" pos="-0.025 0.11 0.01" axis="0 1 0" range="-2 2" damping="10000"/>
-                                    <geom type="mesh" mesh="r_radius" rgba="1 1 1 1"/>
+                                <body name="r_radius" pos="0.0295 -0.015 0.022" euler="0 0 -0.075">
+                                    <inertial pos="0 0 0" mass="0.55265" diaginertia="0.00306940 0.00063784 0.00314473"/>
+                                    <joint name="r_wrist_rot" type="hinge" pos="-0.025 0.1 -0.005" axis="0 1 0" range="-2 2" damping="10000"/>
+                                    <geom type="mesh" mesh="r_radius" name="r_radius_geom" rgba="1 1 1 1"/>
 
                                     <body name="r_hand" pos="0 -0.2 -0.05">
                                         <joint name="r_wrist_flex" type="hinge" pos="0 0.1 0.075" axis="1 0 0" range="-1.0 1.0" damping="10000"/>
                                         <joint name="r_wrist_dev" type="hinge" pos="0 0.1 0.075" axis="0 0 1" range="-1.0 1.0" damping="10000"/>
                                         <inertial pos="0 0 0.05" mass="0.20" diaginertia="0.0005 0.0005 0.00075"/>
-                                        <geom type="mesh" mesh="r_hand" rgba="1 1 1 1"/>
+                                        <geom type="mesh" mesh="r_hand" name="r_hand_geom" rgba="1 1 1 1"/>
                                     </body>
                                 </body>
                             </body>
@@ -371,36 +371,36 @@
                     </body>
                 </body>
 
-                <body name="l_clavicle" pos="-0.005 0.175 -1.1025">
+                <body name="l_clavicle" pos="-0.005 0.175 -1.11">
                     <inertial pos="0.01 0.215 1.05" mass="0.156" diaginertia="0.00024259 0.00025526 4.442e-05"/>
-                    <geom type="mesh" mesh="l_clavicle" rgba="1 1 1 1"/>
+                    <geom type="mesh" mesh="l_clavicle" name="l_clavicle_geom" rgba="1 1 1 1"/>
                     
                     <body name="l_scapula" pos="-0.075 0.0725 -0.375">
                         <inertial pos="0.025 0.09 1.35" mass="0.70396" diaginertia="0.0012429 0.0011504 0.0013651"/>
-                        <geom type="mesh" mesh="l_scapula" rgba="1 1 1 1"/>
+                        <geom type="mesh" mesh="l_scapula" name="l_scapula_geom" rgba="1 1 1 1"/>
                         
-                        <body name="l_humerus" pos="0.095 0.1225 1.31">
-                            <joint name="l_shoulder_abd" type="hinge" pos="0 0 0" axis="-1 0 0" range="-2.0 2.0" damping="10000"/>
+                        <body name="l_humerus" pos="0.095 0.12 1.31">
+                            <joint name="l_shoulder_abd" type="hinge" pos="0 0 0" axis="1 0 0" range="-2.0 2.0" damping="10000"/>
                             <joint name="l_shoulder_rot" type="hinge" pos="0 0 0" axis="0 -1 0" range="-2.0 2.0" damping="10000"/>
                             <joint name="l_shoulder_flex" type="hinge" pos="0 0 0" axis="0 0 -1" range="-1.5 3.0" damping="10000"/>
                             <inertial pos="0.018064 -0.140141 -0.012746" mass="1.99757" diaginertia="0.0122776 0.00255133 0.0125789"/>
-                            <geom type="mesh" mesh="l_humerus" rgba="1 1 1 1"/>
+                            <geom type="mesh" mesh="l_humerus" name="l_humerus_geom" rgba="1 1 1 1"/>
                         
-                            <body name="l_ulna" pos="0 -0.4 -0.01" euler="-0.1 0 0">
-                                <inertial pos="0.175 0.125 0.98" mass="1.1053" diaginertia="0.00541309 0.00115318 0.00494361"/>
-                                <joint name="l_elbow_flex" type="hinge" pos="0.015 0.11 0" axis="0 0 1" range="0 2" damping="10000"/> 
-                                <geom type="mesh" mesh="l_ulna" rgba="1 1 1 1"/>
+                            <body name="l_ulna" pos="0 -0.405 -0.01" euler="-0.1 0 0">
+                                <inertial pos="0 0 0" mass="0.55265" diaginertia="0.00306940 0.00063784 0.00314473"/>
+                                <joint name="l_elbow_flex" type="hinge" pos="0.015 0.11 -0.005" axis="0 0 1" range="0 2" damping="10000"/> 
+                                <geom type="mesh" mesh="l_ulna" name="l_ulna_geom" rgba="1 1 1 1"/>
                                 
-                                <body name="l_radius" pos="0.0245 -0.016 -0.005" euler="0 0 -0.075">
-                                    <inertial pos="0.175 0.125 0.98" mass="1.1053" diaginertia="0.00541309 0.00115318 0.00494361"/>
-                                    <joint name="l_wrist_rot" type="hinge" pos="-0.025 0.11 0.025" axis="0 -1 0" range="-2 2" damping="10000"/>
-                                    <geom type="mesh" mesh="l_radius" rgba="1 1 1 1"/>
+                                <body name="l_radius" pos="0.028 -0.015 -0.005" euler="0 0 -0.075">
+                                    <inertial pos="0 0 0" mass="0.55265" diaginertia="0.00306940 0.00063784 0.00314473"/>
+                                    <joint name="l_wrist_rot" type="hinge" pos="-0.025 0.12 0.025" axis="0 -1 0" range="-2 2" damping="10000"/>
+                                    <geom type="mesh" mesh="l_radius" name="l_radius_geom" rgba="1 1 1 1"/>
 
-                                    <body name="l_hand" pos="-0.005 -0.2 0.195">
-                                        <joint name="l_wrist_flex" type="hinge" pos="0 0.1 -0.175" axis="1 0 0" range="-1.0 1.0" damping="10000"/>
+                                    <body name="l_hand" pos="0.002 -0.195 0.19">
+                                        <inertial pos="0 0 -0.165" mass="0.20" diaginertia="0.0005 0.0005 0.00075"/>
+                                        <joint name="l_wrist_flex" type="hinge" pos="0 0.1 -0.175" axis="-1 0 0" range="-1.0 1.0" damping="10000"/>
                                         <joint name="l_wrist_dev" type="hinge" pos="0 0.1 -0.175" axis="0 0 1" range="-1.0 1.0" damping="10000"/>
-                                        <inertial pos="0 0 0.05" mass="0.20" diaginertia="0.0005 0.0005 0.00075"/>
-                                        <geom type="mesh" mesh="l_hand" rgba="1 1 1 1"/>
+                                        <geom type="mesh" mesh="l_hand" name="l_hand_geom" rgba="1 1 1 1"/>
                                     </body>
                                 </body>
                             </body>
@@ -707,15 +707,15 @@
     </actuator>
 
     <keyframe>
-		<key name="stand" qpos="0 0.91 0 0 0.00411 -0.395 0 -0.0143 0 -0.033 -0.038 0.055 0.022 0.049 0.026 -0.027 -0.4 -0.025 0 0.00411 -0.395 0 -0.0143 0 -0.033 -0.038 0.055 0.022 0.048 0.026 -0.027 -0.4 0.025 -0.12 0.12 0 0.12 0 0 0.05 -0.1 -0.11 0 0.12 0.3 0 0.05 0 0 0 0 0 0" qvel="0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0" time="0.0"/>
+		<key name="stand" qpos="0 0.91 0 0 0.00411 -0.395 0 -0.0143 0 -0.033 -0.038 0.055 0.022 0.049 0.026 -0.027 -0.4 -0.025 0 0.00411 -0.395 0 -0.0143 0 -0.033 -0.038 0.055 0.022 0.048 0.026 -0.027 -0.4 0.025 0.12 0 0 0 0 0 0 0.11 0 0 0 0 0 0 0 0 0 0 0 0" qvel="0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0" time="0.0"/>
 		
-		<key name="walk_left" qpos="0 0.88 -0.262 -0.174 0.00411 -0.395 -0.436 0.0 0 -0.033 -0.038 0.055 0.022 0.049 0.026 -0.027 -0.4 -0.025 0.436 0.00411 -0.395 -0.0873 -0.0737 0 -0.033 -0.038 0.055 0.022 0.048 0.026 -0.027 -0.4 0.025 -0.12 0.12 0 0.12 0 0 0.05 -0.1 -0.11 0 0.12 0.3 0 0.05 0 0 0 0 0 0" qvel="1.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0" time="0.0"/>
+		<key name="walk_left" qpos="0 0.88 -0.262 -0.174 0.00411 -0.395 -0.436 0.0 0 -0.033 -0.038 0.055 0.022 0.049 0.026 -0.027 -0.4 -0.025 0.436 0.00411 -0.395 -0.0873 -0.0737 0 -0.033 -0.038 0.055 0.022 0.048 0.026 -0.027 -0.4 0.025 0.12 0 0 0 0 0 0 0.11 0 0 0 0 0 0 0 0 0 0 0 0" qvel="1.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0" time="0.0"/>
 		
-        <key name="walk_right" qpos="0.0 0.88 -0.262 0.436 0.00411 -0.395 -0.0873 -0.0737 0 -0.033 -0.038 0.055 0.022 0.049 0.026 -0.027 -0.4 -0.025 -0.174 0.00411 -0.395 -0.436 0 0 -0.033 -0.038 0.055 0.022 0.048 0.026 -0.027 -0.4 0.025 -0.12 0.12 0 0.12 0 0 0.05 -0.1 -0.11 0 0.12 0.3 0 0.05 0 0 0 0 0 0" qvel="1.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0" time="0.0"/>
+        <key name="walk_right" qpos="0.0 0.88 -0.262 0.436 0.00411 -0.395 -0.0873 -0.0737 0 -0.033 -0.038 0.055 0.022 0.049 0.026 -0.027 -0.4 -0.025 -0.174 0.00411 -0.395 -0.436 0 0 -0.033 -0.038 0.055 0.022 0.048 0.026 -0.027 -0.4 0.025 0.12 0 0 0 0 0 0 0.11 0 0 0 0 0 0 0 0 0 0 0 0" qvel="1.5 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0" time="0.0"/>
 		
-		<key name="squat" qpos="0.0 0.72 -0.611 1.309 0.00411 -0.395 -1.309 0.349 0.125 -0.0325 -0.0388 0.0529 0.0223 0.0394 0.0293 -0.0274 -0.4 -0.025 1.309 0.00411 -0.395 -1.309 0.349 0.125 -0.0325 -0.0388 0.0529 0.0223 0.0394 0.0293 -0.0274 -0.4 -0.025 -0.12 0.12 0 0.12 0 0 0.05 -0.1 -0.11 0 0.12 0.3 0 0.05 0 0 0 0 0 0" time="0.0"/>
+		<key name="squat" qpos="0.0 0.72 -0.611 1.309 0.00411 -0.395 -1.309 0.349 0.125 -0.0325 -0.0388 0.0529 0.0223 0.0394 0.0293 -0.0274 -0.4 -0.025 1.309 0.00411 -0.395 -1.309 0.349 0.125 -0.0325 -0.0388 0.0529 0.0223 0.0394 0.0293 -0.0274 -0.4 -0.025 0.12 0 0 0 0 0 0 0.11 0 0 0 0 0 0 0 0 0 0 0 0" qvel="0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0" time="0.0"/>
 		
-		<key name="lunge" qpos="0.0 0.67 -0.558 0.698 0.00411 -0.395 -1.48 0.349 0.2 -0.033 -0.038 0.055 0.022 0.049 0.026 -0.027 -0.4 -0.025 1.57 0.00411 -0.395 -1.222 0.174 0.06 -0.033 -0.038 0.055 0.022 0.048 0.026 -0.027 -0.4 0.025 -0.12 0.12 0 0.12 0 0 0.05 -0.1 -0.11 0 0.12 0.3 0 0.05 0 0 0 0 0 0" qvel="0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0" time="0.0"/>
+		<key name="lunge" qpos="0.0 0.67 -0.558 0.698 0.00411 -0.395 -1.48 0.349 0.2 -0.033 -0.038 0.055 0.022 0.049 0.026 -0.027 -0.4 -0.025 1.57 0.00411 -0.395 -1.222 0.174 0.06 -0.033 -0.038 0.055 0.022 0.048 0.026 -0.027 -0.4 0.025 0.12 0 0 0 0 0 0 0.11 0 0 0 0 0 0 0 0 0 0 0 0" qvel="0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0" time="0.0"/>
 	</keyframe>
 
 </mujoco>
