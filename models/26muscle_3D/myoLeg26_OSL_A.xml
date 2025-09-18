@@ -301,7 +301,7 @@
 
                             <body name="toes_l" pos="0.1788 -0.002 -0.00108">
                                 <inertial diaginertia="0.0001 0.0001 0.0001" mass="0.2166" pos="0.0346 0.006 -0.0175" quat="0 0.707107 0 0.707107"/>
-                                <joint axis="0 0 1" name="mtp_angle_l" damping= "0.5" pos="0 0 0" range="-0.0145 0.2"/>
+                                <joint axis="0 0 1" name="mtp_angle_l" damping= "0.5" pos="0 0 0" range="-0.523599 0.523599"/>
                                 <site name="edl_l-P5" pos="0.0003 0.0047 -0.0153"/>
                                 <site name="edl_l-P6" pos="0.0443 -0.0004 -0.025"/>
                                 <site name="fdl_l-P6" pos="-0.0019 -0.0078 -0.0147"/>

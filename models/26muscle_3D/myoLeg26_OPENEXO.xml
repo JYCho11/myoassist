@@ -340,7 +340,7 @@
 
                             <body name="toes_l" pos="0.1788 -0.002 -0.00108">
                                 <inertial diaginertia="0.0001 0.0001 0.0001" mass="0.2166" pos="0.0346 0.006 -0.0175" quat="0 0.707107 0 0.707107"/>
-                                <joint axis="0 0 1" name="mtp_angle_l" damping= "0.5" pos="0 0 0" range="-0.0145 0.2"/>
+                                <joint axis="0 0 1" name="mtp_angle_l" damping= "0.5" pos="0 0 0" range="-0.523599 0.523599"/>
                                 <geom mesh="toes_l_geom_1_l_bofoot" name="toes_l_geom_1" rgba="1 1 1 1" type="mesh"/>
 								<site name="l_toes_touch" type="box" pos="0.0 -0.002 0.01" size=".05 .025 .075" euler="0 1.5 0" class="myo_leg_touch"/>
                                 <site name="edl_l-P5" pos="0.0003 0.0047 -0.0153"/>
