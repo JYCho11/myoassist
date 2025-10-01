@@ -15,7 +15,7 @@
 
 
     <include file="../../terrain_config80.xml"/>
-    <include file="../../../myosuite/simhive/myo_sim/torso/assets/myotorsorigid_assets.xml"/>
+    <include file="../../../myosuite/simhive/myo_sim/torso/assets/myotorso_rigid_assets.xml"/>
     <include file="assets/myolegs_assets_HMEDI.xml"/>
     <compiler angle="radian" meshdir="../../../myosuite/simhive/myo_sim" texturedir="../../../myosuite/simhive/myo_sim"/>
 
@@ -26,7 +26,7 @@
         <site name="pelvis_target" size="0.02" pos="0 0 .92" group="4"/>
 
         <body name="root" pos="0 0 1" euler="0 0 -1.57">
-            <include file="../../../myosuite/simhive/myo_sim/torso/assets/myotorsorigid_chain.xml"/>
+            <include file="../../../myosuite/simhive/myo_sim/torso/assets/myotorso_rigid_chain.xml"/>
             <include file="assets/myolegs_chain_HMEDI.xml"/>
             <freejoint name="root"/>
         </body>
