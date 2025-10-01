@@ -1,4 +1,14 @@
 from dataclasses import dataclass, field
+JOINT_LIMIT_SENSOR_NAMES = [
+    "r_knee_sensor",
+    "l_knee_sensor",
+    "r_hip_sensor",
+    "l_hip_sensor",
+    "r_ankle_sensor",
+    "l_ankle_sensor",
+    "r_mtp_sensor",
+    "l_mtp_sensor",
+]
 @dataclass
 class TrainSessionConfigBase:
     total_timesteps: int = 1000
@@ -49,7 +59,7 @@ class TrainSessionConfigBase:
 
         observation_joint_pos_keys: list[str] = field(default_factory=list)
         observation_joint_vel_keys: list[str] = field(default_factory=list)
-        observation_joint_sensor_keys: list[str] = field(default_factory=list)
+        observation_joint_limit_sensor_keys: list[str] = field(default_factory=lambda: list(JOINT_LIMIT_SENSOR_NAMES))
 
         # terrain type: flat, random, sinusoidal, harmonic_sinusoidal, uphill, downhill, dev
         terrain_type: str = "flat"

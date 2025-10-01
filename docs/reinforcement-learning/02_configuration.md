@@ -95,7 +95,7 @@ TrainSessionConfigBase
 | `lumbar_joint_damping_value` | Lumbar joint damping value | 0.05 |
 | `observation_joint_pos_keys` | Joint position observation keys | ["ankle_angle_l", "hip_flexion_l"] |
 | `observation_joint_vel_keys` | Joint velocity observation keys | ["ankle_angle_l", "hip_flexion_l"] |
-| `observation_joint_sensor_keys` | Joint sensor observation keys | ["r_foot", "l_foot"] |
+| `observation_joint_limit_sensor_keys` | Joint limit sensor observation keys | ["r_foot", "l_foot"] |
 | `terrain_type` | Terrain type (flat, random, harmonic_sinusoidal, slope, dev) | "flat" |
 | `terrain_params` | Terrain parameters (space-separated values) | "0.1 20" |
 | `custom_max_episode_steps` | Maximum episode steps | 1000 |
