@@ -187,6 +187,17 @@
             "r_toes",
             "l_toes"
         ],
+
+        "joint_limit_sensor_keys": [
+            "r_knee_sensor",
+            "l_knee_sensor",
+            "r_hip_sensor",
+            "l_hip_sensor",
+            "r_ankle_sensor",
+            "l_ankle_sensor",
+            "r_mtp_sensor",
+            "l_mtp_sensor"
+        ],
         "terrain_type": "flat",
         "terrain_params": "",
         "flag_random_ref_index": true,
