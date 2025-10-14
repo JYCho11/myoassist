@@ -86,7 +86,7 @@
             "pelvis_tx",
             "pelvis_ty"
         ],
-        "observation_joint_sensor_keys": [
+        "observation_sensor_keys": [
             "r_foot",
             "l_foot",
             "r_toes",

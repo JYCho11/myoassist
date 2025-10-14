@@ -4,7 +4,7 @@ import os
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 from myosuite.utils import gym
 from myosuite.envs import env_base
-from rl_train.train.train_configs.config import TrainSessionConfigBase, JOINT_LIMIT_SENSOR_NAMES
+from rl_train.train.train_configs.config import TrainSessionConfigBase
 from rl_train.utils.data_types import DictionableDataclass
 import collections
 import mujoco
@@ -75,7 +75,9 @@ class MyoAssistLegBase(env_base.MujocoEnv):
 
         self.observation_joint_pos_keys = env_params.observation_joint_pos_keys
         self.observation_joint_vel_keys = env_params.observation_joint_vel_keys
-        self.observation_joint_sensor_keys = env_params.observation_joint_limit_sensor_keys
+        self.observation_sensor_keys = env_params.observation_sensor_keys
+
+        self.joint_limit_sensor_keys = env_params.joint_limit_sensor_keys
 
         # Safely check whether the joint named "lumbar_extension" exists in the model.
         try:
@@ -196,7 +198,7 @@ class MyoAssistLegBase(env_base.MujocoEnv):
             # BaseV0 Add the key like this: obs_keys.append("act")
             obs_dict['act'] = sim.data.act[:].copy() # 22 elements
         obs_dict['sensor'] = []
-        for key in self.observation_joint_sensor_keys:
+        for key in self.observation_sensor_keys:
             sensor_data = sim.data.sensor(f"{key}").data.copy()
             if "foot" in key or "toes" in key:
                 model_mass = np.sum(self.sim.model.body_mass)
@@ -391,7 +393,7 @@ class MyoAssistLegBase(env_base.MujocoEnv):
         return muscle_activations_with_lumbar
     def _get_max_joint_constraint_force(self):
         max_constraint_force = 0
-        for sensor_name in JOINT_LIMIT_SENSOR_NAMES:
+        for sensor_name in self.joint_limit_sensor_keys:
             sensor_data = self.sim.data.sensor(sensor_name).data[0].copy()
             max_constraint_force = max(max_constraint_force, np.max(np.abs(sensor_data)))
         return max_constraint_force
