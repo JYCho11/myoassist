@@ -8,6 +8,188 @@ from datetime import datetime
 from rl_train.envs.environment_handler import EnvironmentHandler
 import subprocess
 
+################################################################################################################### Rendering
+import os, sys, time, threading
+from collections import deque
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.logger import KVWriter, configure
+import numbers
+
+def _getch_nonblock():
+    if os.name == "nt":  # Windows
+        import msvcrt
+        if msvcrt.kbhit():
+            ch = msvcrt.getwch()
+            return ch
+        return None
+    else:  # POSIX
+        import select, sys, termios, tty
+        dr, _, _ = select.select([sys.stdin], [], [], 0.03)
+        if dr:
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            try:
+                tty.setraw(fd)
+                ch = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            return ch
+        return None
+    
+class LiveRenderToggleCallback(BaseCallback):
+    """
+    키:
+      - 'o' : 창 ON/OFF (viewer open/close)
+      - 'v' : 일시정지/재개 (sync 끔/켬)
+      - 'm' : 다음 env
+      - 'n' : 이전 env
+      - 'q' : 키 리스너 종료
+    주의: 키 스레드에서는 '명령만 큐에 push'하고, 실제 env_method 호출은
+         _on_step() (메인 학습 스레드)에서만 수행 -> 경쟁/랜덤 크래시 방지
+    """
+    def __init__(self, num_envs:int, start_index:int=0, render_every_n_steps:int=1, verbose:int=1):
+        super().__init__(verbose)
+        self.num_envs = int(num_envs)
+        self.curr_idx = int(start_index)
+
+        self.enabled_window = False
+        self.paused = False
+
+        self.render_interval = max(1, int(render_every_n_steps))
+        self._last_render_step = -1
+
+        self._stop = False
+        self._th = threading.Thread(target=self._key_loop, daemon=True)
+
+        self._cmd_q = deque()
+        self._lock = threading.Lock()
+
+    # ---------- 키 스레드: 명령만 큐에 넣는다 ----------
+    def _key_loop(self):
+        def _getch_nonblock():
+            if os.name == "nt":
+                import msvcrt
+                if msvcrt.kbhit(): return msvcrt.getwch()
+                return None
+            else:
+                import select, termios, tty
+                dr, _, _ = select.select([sys.stdin], [], [], 0.02)
+                if not dr: return None
+                fd = sys.stdin.fileno()
+                old = termios.tcgetattr(fd)
+                try:
+                    tty.setraw(fd)
+                    ch = sys.stdin.read(1)
+                finally:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old)
+                return ch
+
+        while not self._stop:
+            ch = _getch_nonblock()
+            if not ch:
+                time.sleep(0.01)
+                continue
+            c = ch.lower()
+            with self._lock:
+                if c == 'o':
+                    self._cmd_q.append(("TOGGLE_WINDOW", None))
+                elif c == 'v':
+                    self._cmd_q.append(("TOGGLE_PAUSE", None))
+                elif c == 'm':
+                    self._cmd_q.append(("SWITCH_ENV", +1))
+                elif c == 'n':
+                    self._cmd_q.append(("SWITCH_ENV", -1))
+                elif c == 'q':
+                    self._cmd_q.append(("STOP_KEYS", None))
+            time.sleep(0.005)
+
+    def _drain_cmds(self):
+        cmds = []
+        with self._lock:
+            while self._cmd_q:
+                cmds.append(self._cmd_q.popleft())
+        return cmds
+
+    # ---------- SB3 콜백 라이프사이클 ----------
+    def _on_training_start(self) -> None:
+        self._th.start()
+        if self.verbose:
+            print("[LiveRender] keys: o(open/close), v(pause), m/n(next/prev env), q(stop)")
+
+    def _on_training_end(self) -> None:
+        self._stop = True
+        if self.enabled_window:
+            try:
+                self.training_env.env_method("close_live_view", indices=[self.curr_idx])
+            except Exception:
+                pass
+
+    # ---------- 메인 학습 스레드에서만 env_method를 호출 ----------
+    def _on_step(self) -> bool:
+        # 1) 키 명령 처리
+        for typ, arg in self._drain_cmds():
+            try:
+                if typ == "TOGGLE_WINDOW":
+                    if self.enabled_window:
+                        # close
+                        try:
+                            self.training_env.env_method("close_live_view", indices=[self.curr_idx])
+                        except Exception:
+                            pass
+                        self.enabled_window = False
+                        if self.verbose: print("[LiveRender] window OFF")
+                    else:
+                        # open
+                        self.enabled_window = True
+                        if self.verbose: print("[LiveRender] window ON (env %d)" % self.curr_idx)
+                        try:
+                            self.training_env.env_method("render_live", paused=self.paused, indices=[self.curr_idx])
+                        except Exception as e:
+                            if self.verbose: print(f"[LiveRender] open failed: {e}")
+                            self.enabled_window = False
+
+                elif typ == "TOGGLE_PAUSE":
+                    self.paused = not self.paused
+                    if self.verbose: print(f"[LiveRender] paused={'ON' if self.paused else 'OFF'}")
+
+                elif typ == "SWITCH_ENV":
+                    delta = int(arg)
+                    prev = self.curr_idx
+                    self.curr_idx = (self.curr_idx + delta) % self.num_envs
+                    if self.verbose: print(f"[LiveRender] env {prev} -> {self.curr_idx}")
+                    if self.enabled_window:
+                        # close prev -> short sleep -> open new
+                        try:
+                            self.training_env.env_method("close_live_view", indices=[prev])
+                        except Exception:
+                            pass
+                        time.sleep(0.01)
+                        try:
+                            self.training_env.env_method("render_live", paused=self.paused, indices=[self.curr_idx])
+                        except Exception as e:
+                            if self.verbose: print(f"[LiveRender] switch open failed: {e}")
+                            # 창 상태를 정합하게 유지
+                            self.enabled_window = False
+
+                elif typ == "STOP_KEYS":
+                    if self.verbose: print("[LiveRender] key listener stopped")
+                    self._stop = True
+
+            except Exception as e:
+                # 어떤 에러도 학습을 죽이지 않도록 삼킨다
+                if self.verbose: print(f"[LiveRender] cmd {typ} error: {e}")
+
+        # 2) 주기적 프레임 업데이트 (창 ON & pause OFF 일 때만)
+        if self.enabled_window and (not self.paused):
+            if (self.num_timesteps - self._last_render_step) >= self.render_interval:
+                try:
+                    self.training_env.env_method("render_live", paused=False, indices=[self.curr_idx])
+                    self._last_render_step = self.num_timesteps
+                except Exception as e:
+                    if self.verbose: print(f"[LiveRender] render tick failed: {e}")
+        return True
+################################################################################################################### Rendering
+
 def get_git_info():
     try:
         commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
