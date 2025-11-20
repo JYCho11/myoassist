@@ -105,13 +105,173 @@ class ImitationCustomLearningCallback(BaseCustomLearningCallback):
 
 class MyoAssistLegImitation(MyoAssistLegBase):
     
-    # automatically inherit from MyoAssistLegBase
-    # DEFAULT_OBS_KEYS = ['qpos',
-    #                     'qvel',
-    #                     'act',
-    #                     'target_velocity',
-    #                     ]
+    ################################################################################################################### Rendering
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._viewer = None
+        self._viewer_alive = False
 
+    # --- NEW: 카메라 상태 보존/복원 ---
+    def get_camera_state(self):
+        if self._viewer is None:
+            return None
+        try:
+            cam = self._viewer.cam
+            return dict(
+                azimuth=float(cam.azimuth),
+                elevation=float(cam.elevation),
+                distance=float(cam.distance),
+                lookat=np.array(cam.lookat, dtype=float).copy(),
+            )
+        except Exception:
+            return None
+
+    def set_camera_state(self, state:dict|None):
+        if self._viewer is None or state is None:
+            return
+        try:
+            cam = self._viewer.cam
+            cam.azimuth   = state.get("azimuth",   cam.azimuth)
+            cam.elevation = state.get("elevation", cam.elevation)
+            cam.distance  = state.get("distance",  cam.distance)
+            la = state.get("lookat", None)
+            if la is not None:
+                cam.lookat[:] = la
+        except Exception:
+            pass
+
+    def render_live(self, paused: bool = False, cam_state: dict | None = None):
+        M = self.sim.model.ptr if hasattr(self.sim.model, "ptr") else self.sim.model
+        D = self.sim.data.ptr  if hasattr(self.sim.data,  "ptr") else self.sim.data
+
+        if (self._viewer is None) or (not getattr(self._viewer, "is_alive", True)):
+            self._viewer = mjv.launch_passive(M, D)
+            self._viewer_alive = True
+            if cam_state is not None:
+                self.set_camera_state(cam_state)
+
+        if paused:
+            return  # 프레임 정지: sync()도 호출 안 함 → CPU 부담 거의 0
+
+        # --- 여기서부터 ref 고스트 + 에러 오버레이 ---
+        try:
+            # 1) ref qpos로 별도의 MjData를 만들어 forward
+            if not hasattr(self, "_ref_data_cache"):
+                self._ref_data_cache = mujoco.MjData(self.sim.model.ptr)
+            ref_qpos = self._get_ref_qpos_now()
+            if ref_qpos is not None:
+                self._ref_data_cache.qpos[:] = ref_qpos
+                mujoco.mj_forward(self.sim.model.ptr, self._ref_data_cache)
+
+                # 2) ref 마커(고스트): 무릎·발목·엉덩이 등 사이트를 선택해서 점 찍기
+                # (XML에 있는 site 이름으로 맞춰주세요)
+                ghost_sites = ["r_knee_site","r_ankle_site","l_knee_site","l_ankle_site","pelvis_site"]
+                self._add_ref_markers(self._ref_data_cache, ghost_sites, rgba=(0.0,1.0,0.0,0.6), size=0.02)
+
+            # 3) 텍스트 오버레이: 주요 관절 6개만 간단히 표시
+            key_joints = [
+                "pelvis_tilt", "pelvis_list", "pelvis_rotation",
+                "pelvis_tx", "pelvis_ty", "pelvis_tz",
+                "hip_flexion_r","hip_adduction_r","hip_rotation_r",
+                "knee_angle_r","ankle_angle_r",
+                "hip_flexion_l","hip_adduction_l","hip_rotation_l",
+                "knee_angle_l","ankle_angle_l"
+            ]
+            pairs = self._joint_err_with_units(key_joints)
+            if pairs and hasattr(self._viewer, "add_overlay"):
+                self._viewer.add_overlay(mujoco.mjtGridPos.mjGRID_TOPLEFT, "tracking", "joint          actual    ref     |err|   unit")
+                for jn, act_v, ref_v, err_v, unit in pairs:
+                    self._viewer.add_overlay(
+                        mujoco.mjtGridPos.mjGRID_TOPLEFT, "",
+                        f"{jn:14s}{act_v:9.2f}{ref_v:9.2f}{err_v:9.2f}  {unit}"
+                    )
+        except Exception:
+            pass
+
+        # 마지막에 동기화
+        try:
+            self._viewer.sync()
+        except Exception:
+            try: self._viewer.close()
+            except Exception: pass
+            self._viewer = None
+            self._viewer_alive = False
+
+    def close_live_view(self):
+        if self._viewer is not None:
+            try: self._viewer.close()
+            except Exception: pass
+            self._viewer = None
+            self._viewer_alive = False
+
+    def _get_ref_qpos_now(self):
+        """현재 imitation 인덱스의 ref qpos 벡터를 반환.
+        구현은 환경에 맞게: self._imitation_index, self._ref_qpos_series 등 사용"""
+        # 예시(네 환경 구조에 맞게 가져오세요):
+        # return self.reference_provider.get_qpos(self._imitation_index)
+        return getattr(self, "last_ref_qpos", None)  # 이미 갖고 있으면 그대로
+
+    def _joint_err_with_units(self, joints: list[str]):
+        """각 관절의 (이름, actual, ref, err, unit)을 반환. hinge는 deg, slide는 mm."""
+        import numpy as np, mujoco
+        m = self.sim.model; d = self.sim.data
+        ref_qpos = self._get_ref_qpos_now()
+        if ref_qpos is None:
+            return []
+
+        out = []
+        for jn in joints:
+            # id/adr/type 찾기
+            try:
+                jid = mujoco.mj_name2id(m.ptr, mujoco.mjtObj.mjOBJ_JOINT, jn.encode())
+            except Exception:
+                jid = -1
+            if jid < 0:
+                continue
+            adr = m.jnt_qposadr[jid]
+            jtype = m.jnt_type[jid]  # 0=free,1=ball,2=slide,3=hinge
+
+            act = float(d.qpos[adr])
+            ref = float(ref_qpos[adr])
+
+            if jtype == mujoco.mjtJoint.mjJNT_HINGE:
+                # rad → deg
+                act_v = act * 180.0/np.pi
+                ref_v = ref * 180.0/np.pi
+                unit  = "deg"
+            elif jtype == mujoco.mjtJoint.mjJNT_SLIDE:
+                # m → mm (보기 편하게)
+                act_v = act * 1000.0
+                ref_v = ref * 1000.0
+                unit  = "mm"
+            else:
+                # 그 외는 그냥 숫자 그대로 표시
+                act_v = act; ref_v = ref; unit = ""
+
+            out.append((jn, act_v, ref_v, abs(act_v - ref_v), unit))
+        return out
+
+    def _add_ref_markers(self, data_ref, site_names: list[str], rgba=(0.0,1.0,0.0,0.6), size=0.012):
+        if self._viewer is None:
+            return
+        m = self.sim.model
+        # site id 찾기
+        sids = []
+        for sn in site_names:
+            try:
+                sid = mujoco.mj_name2id(m.ptr, mujoco.mjtObj.mjOBJ_SITE, sn.encode())
+            except Exception:
+                sid = -1
+            sids.append(sid)
+        # 마커 찍기
+        for sid in sids:
+            if sid < 0: 
+                continue
+            pos = data_ref.site_xpos[sid]
+            self._viewer.add_marker(pos=pos, size=[size, size, size], rgba=rgba)
+
+    ################################################################################################################### Rendering
+    
     def _setup(self,*,
             env_params:ImitationTrainSessionConfig.EnvParams,
             reference_data:dict|None = None,
