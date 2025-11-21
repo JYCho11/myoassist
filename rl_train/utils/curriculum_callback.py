@@ -224,6 +224,7 @@ class CurriculumImitationCallback(ImitationCustomLearningCallback):
             
             # Add current reward accumulation (cumulative during rollout)
             # Apply weights to show actual contribution to total reward
+            total_reward_live = 0.0
             if hasattr(self, 'reward_accumulate') and self.reward_accumulate:
                 for key, value in self.reward_accumulate.items():
                     if isinstance(value, dict):
@@ -234,12 +235,17 @@ class CurriculumImitationCallback(ImitationCustomLearningCallback):
                             weighted_value = sub_value * weight
                             log_dict[f'reward_live/{key}/{sub_key}'] = weighted_value
                             log_dict[f'reward_live_raw/{key}/{sub_key}'] = sub_value  # Also log raw value
+                            total_reward_live += weighted_value
                     else:
                         # Scalar value
                         weight = self._reward_weights.get(key, 1.0) if hasattr(self._reward_weights, 'get') else 1.0
                         weighted_value = value * weight
                         log_dict[f'reward_live/{key}'] = weighted_value
                         log_dict[f'reward_live_raw/{key}'] = value  # Also log raw value
+                        total_reward_live += weighted_value
+                
+                # Add total reward
+                log_dict['reward_live/total'] = total_reward_live
             
             # Add training metrics if available from logger
             if self.logger is not None and hasattr(self.logger, 'name_to_value'):
