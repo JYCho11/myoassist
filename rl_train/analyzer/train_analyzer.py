@@ -102,7 +102,7 @@ class TrainAnalyzer:
             # Only load reference data and perform analysis for imitation learning environments
             if config.env_params.env_id in ['myoAssistLegImitation-v0', 'myoAssistLegImitationExo-v0']:
                 try:
-                    segmented_ref_data = np.load("reference_data/segmented.npz", allow_pickle=True)
+                    segmented_ref_data = np.load("reference_data/S004_level_08mps_segmented.npz", allow_pickle=True)
                     segmented_ref_data = {key: segmented_ref_data[key] for key in segmented_ref_data.files}
                     exception_report_list = self.analyze(gait_data, segmented_ref_data, analyze_result_dir, show_plot)
                 except FileNotFoundError:
@@ -116,17 +116,18 @@ class TrainAnalyzer:
             train_analyzer_report["exceptions"].extend(exception_report_list)
 
 
-            # for cam_type in ["average_speed", "follow"]:
-            file_name = f'replay_{eval_idx:02d}.mp4'
-            frames = gait_evaluator.replay(gait_data_path, os.path.join(analyze_result_dir, file_name),
-                                                cam_distance=evaluate_param["cam_distance"],
-                                                # max_time_step=evaluate_param["num_timesteps"],
-                                                use_activation_visualization=evaluate_param["visualize_activation"],
-                                                cam_type=evaluate_param["cam_type"],
-                                                realtime_plotting_info=evaluate_param.get("realtime_plotting_info", []),
-                                                video_fps=config.env_params.control_framerate
-                                                )
-            
+            # side, front 뷰에 대해 각각 replay 영상 생성
+            for view_type in ["side", "front"]:
+                file_name = f'replay_{eval_idx:02d}_{view_type}.mp4'
+                gait_evaluator.replay(gait_data_path, os.path.join(analyze_result_dir, file_name),
+                                      cam_distance=evaluate_param["cam_distance"],
+                                      use_activation_visualization=evaluate_param["visualize_activation"],
+                                      cam_type=evaluate_param["cam_type"],
+                                      cam_view_type=view_type,  # 카메라 뷰 타입 전달
+                                      realtime_plotting_info=evaluate_param.get("realtime_plotting_info", []),
+                                      video_fps=config.env_params.control_framerate
+                                      )
+
             train_analyzer_report_path = os.path.join(analyze_result_dir, "train_analyzer_report.json")
             with open(train_analyzer_report_path, 'w') as f:
                 json.dump(train_analyzer_report, f)

@@ -116,6 +116,7 @@ class GaitEvaluatorBase:
                 cam_distance:float=2.5,
                 # max_time_step:int=600,
                 use_activation_visualization:bool=False,
+                cam_view_type:str="side", # side, front, top, diagonal
                 cam_type:str="follow",
                 realtime_plotting_info:list[dict]=[],
                 video_library:str="imageio",#["cv2", "skvideo", "imageio"]
@@ -127,6 +128,7 @@ class GaitEvaluatorBase:
         Parameters:
         - input_gait_data_path (str): Path to the input gait data file.
         - output_video_path (str): Path where the output video will be saved.
+        - cam_view_type (str): Camera view type. Can be 'side', 'front', 'top', 'diagonal'.
         - use_activation_visualization (bool): Whether to use activation visualization. Default is False.
         - cam_type (str): Type of camera movement. Options are:
             - "follow": Camera follows the pelvis.
@@ -155,7 +157,16 @@ class GaitEvaluatorBase:
                 cam_target_pos[0] = cam_pos_range[0] + (cam_pos_range[1] - cam_pos_range[0]) * time_step / max_timestep
             else:
                 raise ValueError(f"Invalid cam_type: {cam_type}")
-            self.free_cam.distance, self.free_cam.azimuth, self.free_cam.elevation, self.free_cam.lookat = cam_distance, 90, 0, cam_target_pos
+            
+            if cam_view_type == 'side':
+                self.free_cam.azimuth = 90
+                self.free_cam.elevation = 0
+            elif cam_view_type == 'front':
+                self.free_cam.azimuth = 180
+                self.free_cam.elevation = -5
+            
+            self.free_cam.distance = cam_distance
+            self.free_cam.lookat = cam_target_pos
 
         if len(realtime_plotting_info) > 0:
             fig, axs = plt.subplots(len(realtime_plotting_info), 1, figsize=(4, len(realtime_plotting_info) * 2), dpi=300)

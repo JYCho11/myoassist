@@ -83,7 +83,7 @@ for (idx, evaluate_param) in enumerate(config.evaluate_param_list):
 
     gait_data = GaitData()
     gait_data.read_json_data(gait_data_path)
-    segmented_ref_data = np.load("rl_train/reference_data/segmented.npz", allow_pickle=True)
+    segmented_ref_data = np.load("rl_train/reference_data/S004_level_08mps_segmented.npz", allow_pickle=True)
     segmented_ref_data = {key: segmented_ref_data[key] for key in segmented_ref_data.files}
 
 

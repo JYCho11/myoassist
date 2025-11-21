@@ -129,7 +129,7 @@ class EnvironmentHandler:
 
         return custom_callback
     @staticmethod
-    def get_stable_baselines3_model(config:TrainSessionConfigBase, env, trained_model_path:str|None=None):
+    def get_stable_baselines3_model(config:TrainSessionConfigBase, env, trained_model_path:str|None=None, tensorboard_log:str|None=None):
         import stable_baselines3
         from rl_train.train.policies.rl_agent_human import HumanActorCriticPolicy
         from rl_train.train.policies.rl_agent_exo import HumanExoActorCriticPolicy
@@ -144,19 +144,18 @@ class EnvironmentHandler:
             model = stable_baselines3.PPO.load(trained_model_path,
                                             env=env,
                                             custom_objects = {"policy_class": policy_class},
+                                            tensorboard_log=tensorboard_log,
                                             )
         elif config.env_params.prev_trained_policy_path:
             print(f"Loading previous trained policy from {config.env_params.prev_trained_policy_path}")
-            # when should I reset the (value)network?
             model = stable_baselines3.PPO.load(config.env_params.prev_trained_policy_path,
                                             env=env,
                                             custom_objects = {"policy_class": policy_class},
+                                            tensorboard_log=tensorboard_log,
 
-                                            # policy_kwargs=DictionableDataclass.to_dict(config.policy_params),
                                             verbose=2,
                                             **DictionableDataclass.to_dict(config.ppo_params),
                                             )
-            # print(f"Resetting network: {config.custom_policy_params.reset_shared_net_after_load=}, {config.custom_policy_params.reset_policy_net_after_load=}, {config.custom_policy_params.reset_value_net_after_load=}")
             model.policy.reset_network(reset_shared_net=config.policy_params.custom_policy_params.reset_shared_net_after_load,
                                     reset_policy_net=config.policy_params.custom_policy_params.reset_policy_net_after_load,
                                     reset_value_net=config.policy_params.custom_policy_params.reset_value_net_after_load)
@@ -166,15 +165,10 @@ class EnvironmentHandler:
                 env=env,
                 policy_kwargs=DictionableDataclass.to_dict(config.policy_params),
                 verbose=2,
+                tensorboard_log=tensorboard_log,
                 **DictionableDataclass.to_dict(config.ppo_params),
             )
         return model
     @staticmethod
     def updateconfig_from_model_policy(config, model):
         pass
-        # config.policy_info.extractor_policy_net = f"{model.policy.mlp_extractor.policy_net}"
-        # config.policy_info.extractor_value_net = f"{model.policy.mlp_extractor.value_net}"
-        # config.policy_info.action_net = f"{model.policy.action_net}"
-        # config.policy_info.value_net = f"{model.policy.value_net}"
-        # config.policy_info.ortho_init = f"{model.policy.ortho_init}"
-        # config.policy_info.share_features_extractor = f"{model.policy.share_features_extractor}"

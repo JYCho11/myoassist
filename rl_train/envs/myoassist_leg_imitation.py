@@ -8,6 +8,9 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from rl_train.utils.learning_callback import BaseCustomLearningCallback
 from rl_train.utils.train_checkpoint_data_imitation import ImitationTrainCheckpointData
 from rl_train.train.train_configs.config_imitation import ImitationTrainSessionConfig
+import wandb
+import mujoco
+import mujoco.viewer as mjv
 ################################################################
 
 
@@ -71,35 +74,26 @@ class ImitationCustomLearningCallback(BaseCustomLearningCallback):
             self.train_log_handler.add_log_data(log_data)
             self.train_log_handler.write_json_file()
         
+        ################################################################################## wandb
+        total_steps_in_rollout = self.training_env.num_envs * self.model.n_steps
+        
+        custom_metrics = {}
+        total_reward = 0.0
+        
+        for key, value in self.reward_accumulate.items():
+            # 개별 보상 항목의 평균값 계산
+            avg_reward = value / total_steps_in_rollout
+            custom_metrics[f"rewards_breakdown/{key}"] = avg_reward
+            # 총 보상에 합산
+            total_reward += avg_reward
+        custom_metrics["rewards/total_reward"] = total_reward
+        wandb.log(custom_metrics)
+        ##################################################################################
+
         self.rewards_sum = np.zeros(self.training_env.num_envs)
         self.episode_counts = np.zeros(self.training_env.num_envs)
         self.episode_length_counts = np.zeros(self.training_env.num_envs)
-        
 
-        ## ARA (Disabled)
-
-        # print(f"DEBUG:: {self.reward_accumulate=}")
-        # joint_rewards = {}
-        # for key in self.reward_accumulate.keys():
-        #     # print(f"DEBUG:: {key=} {self.reward_accumulate[key]=}")
-        #     if MyoLeg18Imitation.Q_POS_DIFF_REWARD_KEY_PREFIX in key:
-        #         joint_rewards[key] = self.reward_accumulate[key]
-        #     self.reward_accumulate[key] = 0
-        # reward_mean = 0
-        # for key in joint_rewards.keys():
-        #     reward_mean += joint_rewards[key]
-        # reward_mean /= len(joint_rewards)
-        # joint_reward_deviations = {key: (joint_rewards[key] - reward_mean)/reward_mean for key in joint_rewards.keys()}
-
-        # for key in joint_reward_deviations.keys():
-        #     new_reward_weight = getattr(self._reward_weights, key) - self._auto_reward_adjust_params.learning_rate * joint_reward_deviations[key]
-        #     setattr(self._reward_weights, key, new_reward_weight)
-        # subprocvec_env:SubprocVecEnv = self.model.get_env()
-        # subprocvec_env.env_method('set_reward_weights', self._reward_weights)
-        # print(f"DEBUG:: {self._reward_weights=}")
-
-
-##############################################################################
 
 
 
@@ -110,7 +104,8 @@ class MyoAssistLegImitation(MyoAssistLegBase):
         super().__init__(*args, **kwargs)
         self._viewer = None
         self._viewer_alive = False
-
+        self._joint_adr_cache = {} 
+        
     # --- NEW: 카메라 상태 보존/복원 ---
     def get_camera_state(self):
         if self._viewer is None:
@@ -158,17 +153,19 @@ class MyoAssistLegImitation(MyoAssistLegBase):
             # 1) ref qpos로 별도의 MjData를 만들어 forward
             if not hasattr(self, "_ref_data_cache"):
                 self._ref_data_cache = mujoco.MjData(self.sim.model.ptr)
+            
+            # [수정] 현재 인덱스의 Reference Pose를 정확히 가져옴
             ref_qpos = self._get_ref_qpos_now()
+            
             if ref_qpos is not None:
                 self._ref_data_cache.qpos[:] = ref_qpos
                 mujoco.mj_forward(self.sim.model.ptr, self._ref_data_cache)
 
-                # 2) ref 마커(고스트): 무릎·발목·엉덩이 등 사이트를 선택해서 점 찍기
-                # (XML에 있는 site 이름으로 맞춰주세요)
+                # 2) ref 마커(고스트) 표시
                 ghost_sites = ["r_knee_site","r_ankle_site","l_knee_site","l_ankle_site","pelvis_site"]
                 self._add_ref_markers(self._ref_data_cache, ghost_sites, rgba=(0.0,1.0,0.0,0.6), size=0.02)
 
-            # 3) 텍스트 오버레이: 주요 관절 6개만 간단히 표시
+            # 3) 텍스트 오버레이
             key_joints = [
                 "pelvis_tilt", "pelvis_list", "pelvis_rotation",
                 "pelvis_tx", "pelvis_ty", "pelvis_tz",
@@ -185,11 +182,13 @@ class MyoAssistLegImitation(MyoAssistLegBase):
                         mujoco.mjtGridPos.mjGRID_TOPLEFT, "",
                         f"{jn:14s}{act_v:9.2f}{ref_v:9.2f}{err_v:9.2f}  {unit}"
                     )
-        except Exception:
+        except Exception as e:
+            # print(f"Render Error: {e}") 
             pass
 
         # 마지막에 동기화
         try:
+            # self._viewer.sync_data(self.sim.model.ptr, self.sim.data.ptr)
             self._viewer.sync()
         except Exception:
             try: self._viewer.close()
@@ -205,15 +204,32 @@ class MyoAssistLegImitation(MyoAssistLegBase):
             self._viewer_alive = False
 
     def _get_ref_qpos_now(self):
-        """현재 imitation 인덱스의 ref qpos 벡터를 반환.
-        구현은 환경에 맞게: self._imitation_index, self._ref_qpos_series 등 사용"""
-        # 예시(네 환경 구조에 맞게 가져오세요):
-        # return self.reference_provider.get_qpos(self._imitation_index)
-        return getattr(self, "last_ref_qpos", None)  # 이미 갖고 있으면 그대로
+        """
+        [수정됨] Reference Data와 현재 imitation index를 사용하여 
+        실제 Reference Pose Vector를 구성하여 반환합니다.
+        """
+        if (self._reference_data is None) or (self._imitation_index is None):
+            return None
+        
+        # 1. 기본 포즈(키 프레임)로 초기화
+        ref_vec = self.sim.model.key_qpos[0].copy()
+        
+        # 2. 캐시된 주소를 이용해 Reference 값 덮어쓰기
+        idx = self._imitation_index
+        series = self._reference_data["series_data"]
+        
+        for key, adr in self._joint_adr_cache.items():
+            try:
+                # Reference 데이터에서 값 가져오기
+                val = series[f"q_{key}"][idx]
+                ref_vec[adr] = val
+            except KeyError:
+                pass
+                
+        return ref_vec
 
     def _joint_err_with_units(self, joints: list[str]):
-        """각 관절의 (이름, actual, ref, err, unit)을 반환. hinge는 deg, slide는 mm."""
-        import numpy as np, mujoco
+        """각 관절의 (이름, actual, ref, err, unit)을 반환."""
         m = self.sim.model; d = self.sim.data
         ref_qpos = self._get_ref_qpos_now()
         if ref_qpos is None:
@@ -221,31 +237,27 @@ class MyoAssistLegImitation(MyoAssistLegBase):
 
         out = []
         for jn in joints:
-            # id/adr/type 찾기
-            try:
+            # Cache 이용
+            if jn not in self._joint_adr_cache:
                 jid = mujoco.mj_name2id(m.ptr, mujoco.mjtObj.mjOBJ_JOINT, jn.encode())
-            except Exception:
-                jid = -1
-            if jid < 0:
-                continue
-            adr = m.jnt_qposadr[jid]
-            jtype = m.jnt_type[jid]  # 0=free,1=ball,2=slide,3=hinge
+                if jid >= 0:
+                     self._joint_adr_cache[jn] = m.jnt_qposadr[jid]
+                else:
+                    continue # 없는 관절
+            
+            adr = self._joint_adr_cache[jn]
+            # jid를 다시 구해야 type을 알 수 있음 (최적화를 위해 type도 캐싱하면 좋으나 생략)
+            jid = mujoco.mj_name2id(m.ptr, mujoco.mjtObj.mjOBJ_JOINT, jn.encode())
+            jtype = m.jnt_type[jid] 
 
             act = float(d.qpos[adr])
             ref = float(ref_qpos[adr])
 
             if jtype == mujoco.mjtJoint.mjJNT_HINGE:
-                # rad → deg
-                act_v = act * 180.0/np.pi
-                ref_v = ref * 180.0/np.pi
-                unit  = "deg"
+                act_v = act * 180.0/np.pi; ref_v = ref * 180.0/np.pi; unit = "deg"
             elif jtype == mujoco.mjtJoint.mjJNT_SLIDE:
-                # m → mm (보기 편하게)
-                act_v = act * 1000.0
-                ref_v = ref * 1000.0
-                unit  = "mm"
+                act_v = act * 1000.0; ref_v = ref * 1000.0; unit = "mm"
             else:
-                # 그 외는 그냥 숫자 그대로 표시
                 act_v = act; ref_v = ref; unit = ""
 
             out.append((jn, act_v, ref_v, abs(act_v - ref_v), unit))

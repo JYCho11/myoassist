@@ -142,7 +142,7 @@ class BaseCustomLearningCallback(BaseCallback):
             if write_log:
                 self.train_log_handler.add_log_data(log_data)
                 self.train_log_handler.write_json_file()
-            
+
             self.rewards_sum = np.zeros(self.training_env.num_envs)
             self.episode_counts = np.zeros(self.training_env.num_envs)
             self.episode_length_counts = np.zeros(self.training_env.num_envs)

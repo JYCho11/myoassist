@@ -7,7 +7,9 @@ import os
 from datetime import datetime
 from rl_train.envs.environment_handler import EnvironmentHandler
 import subprocess
-
+import torch
+import wandb # [추가]
+from wandb.integration.sb3 import WandbCallback # [추가]
 ################################################################################################################### Rendering
 import os, sys, time, threading
 from collections import deque
@@ -188,7 +190,7 @@ class LiveRenderToggleCallback(BaseCallback):
                 except Exception as e:
                     if self.verbose: print(f"[LiveRender] render tick failed: {e}")
         return True
-################################################################################################################### Rendering
+###################################################################################################################
 
 def get_git_info():
     try:
@@ -226,26 +228,54 @@ def ppo_evaluate_with_rendering(config):
             obs, info = env.reset()
 
     env.close()
+    
 def ppo_train_with_parameters(config, train_time_step, is_rendering_on, train_log_handler):
     seed = 1234
     np.random.seed(seed)
 
     env = EnvironmentHandler.create_environment(config, is_rendering_on)
-    model = EnvironmentHandler.get_stable_baselines3_model(config, env)
+    model = EnvironmentHandler.get_stable_baselines3_model(config, env, tensorboard_log=train_log_handler.log_dir)
 
+    try:
+        print(f"[TORCH] cuda.is_available = {torch.cuda.is_available()}")
+    except Exception as e:
+        print(f"[TORCH] not importable ({e})")
+    print(f"[PPO] model.device   = {getattr(model, 'device', None)}")
+    print(f"[PPO] policy.device  = {getattr(getattr(model, 'policy', None), 'device', None)}")
+        
+        
     EnvironmentHandler.updateconfig_from_model_policy(config, model)
 
     session_config_dict = DictionableDataclass.to_dict(config)
     session_config_dict["env_params"].pop("reference_data", None)
-
     session_config_dict["code_version"] = VERSION
+    
+    run = wandb.init(
+        project="MyoAssist-Imitation",
+        config=session_config_dict,  # 전체 config 자동 로깅
+        sync_tensorboard=True,       # SB3 기본 로그와 연동
+        monitor_gym=True,            # 비디오 저장 (필요시)
+        save_code=True,              # 코드 백업
+        name=f"session_{datetime.now().strftime('%Y%m%d-%H%M%S')}" # Run 이름
+    )
+    
     with open(os.path.join(log_dir, 'session_config.json'), 'w', encoding='utf-8') as file:
         json.dump(session_config_dict, file, ensure_ascii=False, indent=4)
 
+
     custom_callback = EnvironmentHandler.get_callback(config, train_log_handler)
+    
+########################################################################################################## rendering, wandb
+    live_cb = LiveRenderToggleCallback(num_envs=config.env_params.num_envs, start_index=0)
+    wandb_callback = WandbCallback(
+        gradient_save_freq=100,
+        model_save_path=f"models/{run.id}",
+        verbose=2,
+    )
+    final_callback = [custom_callback, live_cb, wandb_callback]
+##########################################################################################################
 
-
-    model.learn(reset_num_timesteps=False, total_timesteps=train_time_step, log_interval=1, callback=custom_callback, progress_bar=True)
+    model.learn(reset_num_timesteps=False, total_timesteps=train_time_step, log_interval=1, callback=final_callback, progress_bar=True)
     env.close()
     print("learning done!")
 
@@ -253,7 +283,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config_file_path", type=str, default="", help="path to train config file")
-    parser.add_argument("--flag_rendering", type=bool, default=False, action=argparse.BooleanOptionalAction, help="rendering(True/False)")
+    parser.add_argument("--flag_rendering", type=bool, default=False, action=argparse.BooleanOptionalAction, help="rendering(True/False). Default: False to avoid opening GUI on train start.")
     parser.add_argument("--flag_realtime_evaluate", type=bool, default=False, action=argparse.BooleanOptionalAction, help="realtime evaluate(True/False)")
 
     args, unknown_args = parser.parse_known_args()
