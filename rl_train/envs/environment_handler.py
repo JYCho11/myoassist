@@ -1,13 +1,13 @@
 import numpy as np
 import json
-from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from myosuite.utils import gym
 from rl_train.utils.data_types import DictionableDataclass
 import os
 from rl_train.train.train_configs.config import TrainSessionConfigBase
 class EnvironmentHandler:
     @staticmethod
-    def create_environment(config, is_rendering_on:bool, is_evaluate_mode:bool = False):
+    def create_environment(config, is_rendering_on:bool, is_evaluate_mode:bool = False, use_dummy_vec_env:bool = False):
 
         ref_data_dict = EnvironmentHandler.load_reference_data(config)
     
@@ -32,9 +32,14 @@ class EnvironmentHandler:
                 config.env_params.num_envs = 1
                 config.ppo_params.n_steps = config.ppo_params.batch_size
             else:
-                env = SubprocVecEnv([lambda: (gym.make(config.env_params.env_id, 
+                # DummyVecEnv: threading 기반 (live rendering 가능, 약간 느림)
+                # SubprocVecEnv: multiprocessing 기반 (live rendering 불가, 빠름)
+                vec_env_cls = DummyVecEnv if use_dummy_vec_env else SubprocVecEnv
+                env = vec_env_cls([lambda: (gym.make(config.env_params.env_id, 
                                                     **gym_make_args)).unwrapped 
                                 for _ in range(config.env_params.num_envs)])
+                if use_dummy_vec_env:
+                    print(f"[ENV] Using DummyVecEnv (threading) - live rendering ENABLED")
         except Exception as e:
             new_message = str(e)[:1000]
             e.args = (new_message,)
@@ -112,14 +117,81 @@ class EnvironmentHandler:
         
         from rl_train.envs import myoassist_leg_imitation
         from rl_train.utils import learning_callback
+        
         if isinstance(config, ImitationTrainSessionConfig):
-            custom_callback = myoassist_leg_imitation.ImitationCustomLearningCallback(
-                log_rollout_freq=config.logger_params.logging_frequency,
-                evaluate_freq=config.logger_params.evaluate_frequency,
-                log_handler=train_log_handler,
-                original_reward_weights=config.env_params.reward_keys_and_weights,
-                auto_reward_adjust_params=config.auto_reward_adjust_params,
-            )
+            # ========== ORIGINAL CODE (주석처리) ==========
+            # custom_callback = myoassist_leg_imitation.ImitationCustomLearningCallback(
+            #     log_rollout_freq=config.logger_params.logging_frequency,
+            #     evaluate_freq=config.logger_params.evaluate_frequency,
+            #     log_handler=train_log_handler,
+            #     original_reward_weights=config.env_params.reward_keys_and_weights,
+            #     auto_reward_adjust_params=config.auto_reward_adjust_params,
+            # )
+            # ========== END ORIGINAL CODE ==========
+            
+            # ========== NEW CODE: Curriculum Learning Support (모듈화) ==========
+            # Check if curriculum learning is enabled
+            use_curriculum = hasattr(config, 'curriculum_params') and getattr(config.curriculum_params, 'enabled', False)
+            use_wandb = hasattr(config, 'wandb_params') and getattr(config.wandb_params, 'enabled', False)
+            
+            print(f"[DEBUG ENV_HANDLER] use_curriculum={use_curriculum}, use_wandb={use_wandb}")
+            if hasattr(config, 'wandb_params'):
+                print(f"[DEBUG ENV_HANDLER] wandb_params exists: enabled={config.wandb_params.enabled}, project={config.wandb_params.project}, run_name={config.wandb_params.run_name}")
+            
+            if use_curriculum:
+                # Use curriculum learning callback
+                from rl_train.utils.curriculum_callback import CurriculumImitationCallback
+                
+                # Prepare curriculum config
+                curriculum_config = {
+                    'phase1_end': config.curriculum_params.phase1_end,
+                    'phase2_end': config.curriculum_params.phase2_end,
+                    'forward_weight_schedule': config.curriculum_params.forward_weight_schedule,
+                    'imitation_pos_weight_schedule': config.curriculum_params.imitation_pos_weight_schedule,
+                    'imitation_vel_weight_schedule': config.curriculum_params.imitation_vel_weight_schedule,
+                }
+                
+                # Prepare WandB config
+                wandb_config = {}
+                if use_wandb:
+                    wandb_config = {
+                        'project': config.wandb_params.project,
+                        'run_name': config.wandb_params.run_name,
+                    }
+                    if hasattr(config.wandb_params, 'entity') and config.wandb_params.entity:
+                        wandb_config['entity'] = config.wandb_params.entity
+                
+                print(f"Using Curriculum Learning Callback")
+                print(f"  Phase 1: 0-{curriculum_config['phase1_end']*100:.0f}% (Balancing)")
+                print(f"  Phase 2: {curriculum_config['phase1_end']*100:.0f}-{curriculum_config['phase2_end']*100:.0f}% (Transition)")
+                print(f"  Phase 3: {curriculum_config['phase2_end']*100:.0f}-100% (Imitation)")
+                if use_wandb:
+                    print(f"  WandB: project={wandb_config.get('project')}, run={wandb_config.get('run_name')}")
+                
+                print(f"[DEBUG ENV_HANDLER] Creating CurriculumImitationCallback with use_wandb={use_wandb}")
+                custom_callback = CurriculumImitationCallback(
+                    log_rollout_freq=config.logger_params.logging_frequency,
+                    evaluate_freq=config.logger_params.evaluate_frequency,
+                    log_handler=train_log_handler,
+                    original_reward_weights=config.env_params.reward_keys_and_weights,
+                    auto_reward_adjust_params=config.auto_reward_adjust_params,
+                    total_timesteps=int(config.total_timesteps),
+                    curriculum_config=curriculum_config,
+                    use_wandb=use_wandb,
+                    wandb_project=wandb_config.get('project', 'myoassist-curriculum'),
+                    wandb_run_name=wandb_config.get('run_name', None),
+                )
+            else:
+                # Use standard imitation callback (original behavior)
+                print(f"Using Standard Imitation Callback")
+                custom_callback = myoassist_leg_imitation.ImitationCustomLearningCallback(
+                    log_rollout_freq=config.logger_params.logging_frequency,
+                    evaluate_freq=config.logger_params.evaluate_frequency,
+                    log_handler=train_log_handler,
+                    original_reward_weights=config.env_params.reward_keys_and_weights,
+                    auto_reward_adjust_params=config.auto_reward_adjust_params,
+                )
+            # ========== END NEW CODE ==========
         else:
             custom_callback = learning_callback.BaseCustomLearningCallback(
                 log_rollout_freq=config.logger_params.logging_frequency,

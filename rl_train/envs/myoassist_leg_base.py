@@ -364,19 +364,35 @@ class MyoAssistLegBase(env_base.MujocoEnv):
         self._step_count_per_episode = 0
         if not self.is_evaluate_mode:
             self._change_mode_and_target_velocity_randomly()
-        self.sim.data.joint("pelvis_tx").qvel[0] = self._target_velocity
-
-        self.sim.forward()
-        # sync targets to sim_obsd
-        self.robot.sync_sims(self.sim, self.sim_obsd)
-
+        
+        # ========== ORIGINAL CODE (주석처리) ==========
+        # self.sim.data.joint("pelvis_tx").qvel[0] = self._target_velocity
+        # self.sim.forward()
+        # # sync targets to sim_obsd
+        # self.robot.sync_sims(self.sim, self.sim_obsd)
+        # self._reset_heel_strike_buffer()
+        # self._reset_reward_per_step()
+        # self._reset_properties_per_step()
+        # # generate resets
+        # # obs = super().reset(reset_qpos= self.sim.data.qpos, reset_qvel=self.sim.data.qvel, **kwargs)
+        # obs = super().reset(**kwargs)
+        # ========== END ORIGINAL CODE ==========
+        
+        # ========== Stand pose 코드 (다시 활성화 - 초기 자세 안정화) ==========
+        if 'reset_qpos' not in kwargs and 'reset_qvel' not in kwargs:
+            reset_qpos = self.sim.model.key_qpos[0].copy()
+            reset_qvel = self.sim.model.key_qvel[0].copy()
+            reset_qvel[0] = self._target_velocity
+            kwargs['reset_qpos'] = reset_qpos
+            kwargs['reset_qvel'] = reset_qvel
+        # ========== END Stand pose 코드 ==========
+        
         self._reset_heel_strike_buffer()
         self._reset_reward_per_step()
         self._reset_properties_per_step()
-
         # generate resets
-        # obs = super().reset(reset_qpos= self.sim.data.qpos, reset_qvel=self.sim.data.qvel, **kwargs)
         obs = super().reset(**kwargs)
+        
         return obs
     
     def _get_done(self):

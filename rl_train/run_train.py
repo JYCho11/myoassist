@@ -1,9 +1,13 @@
+import sys
+import os
+# Add current workspace to path to use local modifications
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import rl_train.train.train_configs.config as myoassist_config
 import rl_train.utils.train_log_handler as train_log_handler
 from rl_train.utils.data_types import DictionableDataclass
 import json
-import os
 from datetime import datetime
 from rl_train.envs.environment_handler import EnvironmentHandler
 import subprocess
@@ -44,13 +48,17 @@ class LiveRenderToggleCallback(BaseCallback):
       - 'm' : 다음 env
       - 'n' : 이전 env
       - 'q' : 키 리스너 종료
-    주의: 키 스레드에서는 '명령만 큐에 push'하고, 실제 env_method 호출은
+    주의: 
+      1) 키 스레드에서는 '명령만 큐에 push'하고, 실제 env_method 호출은
          _on_step() (메인 학습 스레드)에서만 수행 -> 경쟁/랜덤 크래시 방지
+      2) SubprocVecEnv (multiprocessing) 사용 시 MuJoCo viewer 생성 불가!
+         -> DummyVecEnv (threading) 사용 필요 또는 render_off=True로 비활성화
     """
-    def __init__(self, num_envs:int, start_index:int=0, render_every_n_steps:int=1, verbose:int=1):
+    def __init__(self, num_envs:int, start_index:int=0, render_every_n_steps:int=1, render_off:bool=False, verbose:int=1):
         super().__init__(verbose)
         self.num_envs = int(num_envs)
         self.curr_idx = int(start_index)
+        self.render_off = render_off  # True면 렌더링 명령 무시
 
         self.enabled_window = False
         self.paused = False
@@ -112,9 +120,24 @@ class LiveRenderToggleCallback(BaseCallback):
 
     # ---------- SB3 콜백 라이프사이클 ----------
     def _on_training_start(self) -> None:
-        self._th.start()
-        if self.verbose:
-            print("[LiveRender] keys: o(open/close), v(pause), m/n(next/prev env), q(stop)")
+        # SubprocVecEnv 체크: multiprocessing이면 렌더링 불가
+        from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
+        if isinstance(self.training_env, SubprocVecEnv):
+            if self.verbose:
+                print("[LiveRender] WARNING: SubprocVecEnv detected - live rendering disabled")
+                print("[LiveRender] TIP: Use --flag_live_render to enable DummyVecEnv for live rendering")
+            self.render_off = True
+        elif isinstance(self.training_env, DummyVecEnv):
+            if self.verbose:
+                print("[LiveRender] DummyVecEnv detected - live rendering ENABLED")
+        
+        if not self.render_off:
+            self._th.start()
+            if self.verbose:
+                print("[LiveRender] Keyboard controls active: o(open/close), v(pause), m/n(next/prev env), q(stop)")
+        else:
+            if self.verbose:
+                print("[LiveRender] Keyboard controls disabled (SubprocVecEnv mode)")
 
     def _on_training_end(self) -> None:
         self._stop = True
@@ -126,6 +149,9 @@ class LiveRenderToggleCallback(BaseCallback):
 
     # ---------- 메인 학습 스레드에서만 env_method를 호출 ----------
     def _on_step(self) -> bool:
+        if self.render_off:
+            return True  # 렌더링 비활성화 시 아무것도 안 함
+        
         # 1) 키 명령 처리
         for typ, arg in self._drain_cmds():
             try:
@@ -226,11 +252,11 @@ def ppo_evaluate_with_rendering(config):
             obs, info = env.reset()
 
     env.close()
-def ppo_train_with_parameters(config, train_time_step, is_rendering_on, train_log_handler):
+def ppo_train_with_parameters(config, train_time_step, is_rendering_on, train_log_handler, use_live_render=False):
     seed = 1234
     np.random.seed(seed)
 
-    env = EnvironmentHandler.create_environment(config, is_rendering_on)
+    env = EnvironmentHandler.create_environment(config, is_rendering_on, use_dummy_vec_env=use_live_render)
     model = EnvironmentHandler.get_stable_baselines3_model(config, env)
 
     EnvironmentHandler.updateconfig_from_model_policy(config, model)
@@ -244,8 +270,29 @@ def ppo_train_with_parameters(config, train_time_step, is_rendering_on, train_lo
 
     custom_callback = EnvironmentHandler.get_callback(config, train_log_handler)
 
+    # ========== ADD LIVE RENDERING TOGGLE CALLBACK ==========
+    # Create list of callbacks
+    from stable_baselines3.common.callbacks import CallbackList
+    
+    callbacks = [custom_callback]
+    
+    # Add live render toggle if not in rendering mode
+    # NOTE: Auto-disabled if SubprocVecEnv (multiprocessing) is used
+    #       Requires DummyVecEnv (threading) for MuJoCo viewer support
+    if not is_rendering_on:
+        live_render_callback = LiveRenderToggleCallback(
+            num_envs=config.env_params.num_envs,
+            start_index=0,
+            render_every_n_steps=4,
+            render_off=False,  # Will auto-detect SubprocVecEnv and disable
+            verbose=1
+        )
+        callbacks.append(live_render_callback)
+    
+    callback_list = CallbackList(callbacks)
+    # ========== END LIVE RENDERING ==========
 
-    model.learn(reset_num_timesteps=False, total_timesteps=train_time_step, log_interval=1, callback=custom_callback, progress_bar=True)
+    model.learn(reset_num_timesteps=False, total_timesteps=train_time_step, log_interval=1, callback=callback_list, progress_bar=True)
     env.close()
     print("learning done!")
 
@@ -255,6 +302,7 @@ if __name__ == '__main__':
     parser.add_argument("--config_file_path", type=str, default="", help="path to train config file")
     parser.add_argument("--flag_rendering", type=bool, default=False, action=argparse.BooleanOptionalAction, help="rendering(True/False)")
     parser.add_argument("--flag_realtime_evaluate", type=bool, default=False, action=argparse.BooleanOptionalAction, help="realtime evaluate(True/False)")
+    parser.add_argument("--flag_live_render", type=bool, default=False, action=argparse.BooleanOptionalAction, help="Enable live rendering toggle with DummyVecEnv (slower but allows 'o' key rendering)")
 
     args, unknown_args = parser.parse_known_args()
     if args.config_file_path is None:
@@ -281,5 +329,6 @@ if __name__ == '__main__':
         ppo_train_with_parameters(config,
                                 train_time_step=config.total_timesteps,
                                 is_rendering_on=args.flag_rendering,
-                                train_log_handler=train_log_handler)
+                                train_log_handler=train_log_handler,
+                                use_live_render=args.flag_live_render)
     

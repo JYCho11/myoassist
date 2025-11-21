@@ -298,7 +298,7 @@ class MyoAssistLegImitation(MyoAssistLegBase):
     def get_obs_dict(self, sim):
         return super().get_obs_dict(sim)
 
-    def _get_qpos_diff(self) -> dict:
+    def _get_qpos_diff(self):
 
         def get_qpos_diff_one(key:str):
             diff = self.sim.data.joint(f"{key}").qpos[0].copy() - self._reference_data["series_data"][f"q_{key}"][self._imitation_index]
@@ -308,8 +308,24 @@ class MyoAssistLegImitation(MyoAssistLegBase):
             name_diff_dict[q_key] = get_qpos_diff_one(q_key)
         return name_diff_dict
     def _get_qvel_diff(self):
-        speed_ratio_to_target_velocity = self._target_velocity / self._reference_data["series_data"]["dq_pelvis_tx"][self._imitation_index]
-
+        # ========== ORIGINAL CODE (주석처리) ==========
+        # speed_ratio_to_target_velocity = self._target_velocity / self._reference_data["series_data"]["dq_pelvis_tx"][self._imitation_index]
+        # ========== END ORIGINAL CODE ==========
+        
+        # ========== NEW CODE: Divide by zero 방지 ==========
+        ref_vel_raw = self._reference_data["series_data"]["dq_pelvis_tx"][self._imitation_index]
+        # Handle numpy array: use .flat[0] to get first element regardless of shape
+        if isinstance(ref_vel_raw, np.ndarray):
+            ref_velocity = float(ref_vel_raw.flat[0])
+        else:
+            ref_velocity = float(ref_vel_raw)
+        
+        if abs(ref_velocity) < 1e-6:  # Avoid divide by zero
+            speed_ratio_to_target_velocity = 1.0
+        else:
+            speed_ratio_to_target_velocity = self._target_velocity / ref_velocity
+        # ========== END NEW CODE ==========
+        
         def get_qvel_diff_one(key:str):
             diff = self.sim.data.joint(f"{key}").qvel[0].copy() - self._reference_data["series_data"][f"dq_{key}"][self._imitation_index] * speed_ratio_to_target_velocity
             return diff
@@ -395,7 +411,25 @@ class MyoAssistLegImitation(MyoAssistLegBase):
                 self.sim.data.joint(f"{key}").qpos = 0
             # if key == 'pelvis_ty':
             #     self.sim.data.joint(f"{key}").qpos += 0.05
-        speed_ratio_to_target_velocity = self._target_velocity / self._reference_data["series_data"]["dq_pelvis_tx"][self._imitation_index]
+        
+        # ========== ORIGINAL CODE (주석처리) ==========
+        # speed_ratio_to_target_velocity = self._target_velocity / self._reference_data["series_data"]["dq_pelvis_tx"][self._imitation_index]
+        # ========== END ORIGINAL CODE ==========
+        
+        # ========== NEW CODE: Divide by zero 방지 ==========
+        ref_vel_raw = self._reference_data["series_data"]["dq_pelvis_tx"][self._imitation_index]
+        # Handle numpy array: use .flat[0] to get first element regardless of shape
+        if isinstance(ref_vel_raw, np.ndarray):
+            ref_velocity = float(ref_vel_raw.flat[0])
+        else:
+            ref_velocity = float(ref_vel_raw)
+        
+        if abs(ref_velocity) < 1e-6:  # Avoid divide by zero
+            speed_ratio_to_target_velocity = 1.0
+        else:
+            speed_ratio_to_target_velocity = self._target_velocity / ref_velocity
+        # ========== END NEW CODE ==========
+        
         for key in self.reference_data_keys:
             self.sim.data.joint(f"{key}").qvel = self._reference_data["series_data"][f"dq_{key}"][self._imitation_index] * speed_ratio_to_target_velocity
     def imitation_step(self, is_x_follow:bool, specific_index:int|None = None):

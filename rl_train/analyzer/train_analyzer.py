@@ -102,11 +102,17 @@ class TrainAnalyzer:
             # Only load reference data and perform analysis for imitation learning environments
             if config.env_params.env_id in ['myoAssistLegImitation-v0', 'myoAssistLegImitationExo-v0']:
                 try:
-                    segmented_ref_data = np.load("reference_data/segmented.npz", allow_pickle=True)
+                    # Try to load segmented reference data from configured path first
+                    if hasattr(config.env_params, 'reference_data_path') and config.env_params.reference_data_path:
+                        ref_path = config.env_params.reference_data_path
+                    else:
+                        ref_path = "reference_data/segmented.npz"
+                    
+                    segmented_ref_data = np.load(ref_path, allow_pickle=True)
                     segmented_ref_data = {key: segmented_ref_data[key] for key in segmented_ref_data.files}
                     exception_report_list = self.analyze(gait_data, segmented_ref_data, analyze_result_dir, show_plot)
                 except FileNotFoundError:
-                    print("Warning: Reference data file not found. Skipping gait analysis.")
+                    print(f"Warning: Reference data file not found at {ref_path if 'ref_path' in locals() else 'reference_data/segmented.npz'}. Skipping gait analysis.")
                     exception_report_list = []
             else:
                 # For base environments, skip reference data analysis
