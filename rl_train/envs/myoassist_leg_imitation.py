@@ -71,6 +71,7 @@ class ImitationCustomLearningCallback(BaseCustomLearningCallback):
             self.train_log_handler.add_log_data(log_data)
             self.train_log_handler.write_json_file()
         
+        # Reset accumulated episode/reward counters
         self.rewards_sum = np.zeros(self.training_env.num_envs)
         self.episode_counts = np.zeros(self.training_env.num_envs)
         self.episode_length_counts = np.zeros(self.training_env.num_envs)
@@ -97,6 +98,19 @@ class ImitationCustomLearningCallback(BaseCustomLearningCallback):
         # subprocvec_env:SubprocVecEnv = self.model.get_env()
         # subprocvec_env.env_method('set_reward_weights', self._reward_weights)
         # print(f"DEBUG:: {self._reward_weights=}")
+
+        # Reset reward_accumulate so values don't accumulate across multiple rollouts
+        try:
+            for key in list(self.reward_accumulate.keys()):
+                val = self.reward_accumulate[key]
+                if isinstance(val, dict):
+                    for sub_key in list(val.keys()):
+                        val[sub_key] = 0
+                else:
+                    self.reward_accumulate[key] = 0
+        except Exception:
+            # Defensive: if structure changed, reinitialize to zeros
+            self.reward_accumulate = {k: 0 for k in getattr(self, 'reward_accumulate', {}).keys()}
 
 
 ##############################################################################
