@@ -1,5 +1,5 @@
 {
-    "description": "Normalized Curriculum Learning - Balanced reward categories (1:1:1 ratio)",
+    "description": "Normalized Curriculum Learning - Uses reward_scale_factors to balance reward magnitudes",
     "total_timesteps": 3e7,
     "evaluate_param_list":[
         {
@@ -41,39 +41,39 @@
         "reward_keys_and_weights": {
             "qpos_imitation_rewards": {
                 "pelvis_tx": 0.0,
-                "pelvis_ty": 0.00000067,
-                "pelvis_tz": 0.00000067,
-                "pelvis_tilt": 0.00000067,
-                "pelvis_list": 0.00000067,
-                "pelvis_rotation": 0.00000067,
-                "hip_flexion_l": 0.00000067,
-                "hip_flexion_r": 0.00000067,
-                "hip_adduction_l": 0.00000067,
-                "hip_adduction_r": 0.00000067,
-                "hip_rotation_l": 0.00000067,
-                "hip_rotation_r": 0.00000067,
-                "knee_angle_l": 0.00000067,
-                "knee_angle_r": 0.00000067,
-                "ankle_angle_l": 0.00000067,
-                "ankle_angle_r": 0.00000067
+                "pelvis_ty": 0.00001,
+                "pelvis_tz": 0.00001,
+                "pelvis_tilt": 0.00001,
+                "pelvis_list": 0.00001,
+                "pelvis_rotation": 0.00001,
+                "hip_flexion_l": 0.00001,
+                "hip_flexion_r": 0.00001,
+                "hip_adduction_l": 0.00001,
+                "hip_adduction_r": 0.00001,
+                "hip_rotation_l": 0.00001,
+                "hip_rotation_r": 0.00001,
+                "knee_angle_l": 0.00001,
+                "knee_angle_r": 0.00001,
+                "ankle_angle_l": 0.00001,
+                "ankle_angle_r": 0.00001
             },
             "qvel_imitation_rewards": {
                 "pelvis_tx": 0.0,
-                "pelvis_ty": 0.00000067,
-                "pelvis_tz": 0.00000067,
-                "pelvis_tilt": 0.00000067,
-                "pelvis_list": 0.00000067,
-                "pelvis_rotation": 0.00000067,
-                "hip_flexion_l": 0.00000067,
-                "hip_flexion_r": 0.00000067,
-                "hip_adduction_l": 0.00000067,
-                "hip_adduction_r": 0.00000067,
-                "hip_rotation_l": 0.00000067,
-                "hip_rotation_r": 0.00000067,
-                "knee_angle_l": 0.00000067,
-                "knee_angle_r": 0.00000067,
-                "ankle_angle_l": 0.00000067,
-                "ankle_angle_r": 0.00000067
+                "pelvis_ty": 0.00001,
+                "pelvis_tz": 0.00001,
+                "pelvis_tilt": 0.00001,
+                "pelvis_list": 0.00001,
+                "pelvis_rotation": 0.00001,
+                "hip_flexion_l": 0.00001,
+                "hip_flexion_r": 0.00001,
+                "hip_adduction_l": 0.00001,
+                "hip_adduction_r": 0.00001,
+                "hip_rotation_l": 0.00001,
+                "hip_rotation_r": 0.00001,
+                "knee_angle_l": 0.00001,
+                "knee_angle_r": 0.00001,
+                "ankle_angle_l": 0.00001,
+                "ankle_angle_r": 0.00001
             },
             "end_effector_imitation_reward": 0.0,
             "forward_reward": 1.0,
@@ -190,6 +190,15 @@
     },
     "auto_reward_adjust_params":{
         "learning_rate": 0.0
+    },
+    "reward_scale_factors": {
+        "description": "Scale factors to normalize rewards to similar magnitudes",
+        "qpos_imitation_scale": 0.00001,
+        "qvel_imitation_scale": 0.00001,
+        "forward_reward_scale": 1.0,
+        "muscle_penalty_scale": 0.0000001,
+        "foot_force_penalty_scale": 0.00001,
+        "rationale": "Raw imitation rewards ~100k per rollout, forward ~0.5 per rollout. These scales bring them to similar order of magnitude."
     },
     "curriculum_params": {
         "enabled": true,
