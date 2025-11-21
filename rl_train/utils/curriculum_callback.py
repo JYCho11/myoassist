@@ -120,6 +120,44 @@ class CurriculumImitationCallback(ImitationCustomLearningCallback):
     def _get_curriculum_progress(self) -> float:
         """Get current curriculum progress (0.0 to 1.0)"""
         return min(1.0, self.num_timesteps / self.total_timesteps)
+
+    def _get_weight_for(self, key: str, sub_key: str | None = None):
+        """Return the configured weight for a reward `key` (and optional `sub_key`).
+
+        Handles dataclass-style `self._reward_weights` where attributes may be
+        scalars or dicts for per-joint weights.
+        """
+        # Try attribute access first (dataclass instances)
+        if hasattr(self._reward_weights, key):
+            attr = getattr(self._reward_weights, key)
+            if sub_key is not None:
+                if isinstance(attr, dict):
+                    return attr.get(sub_key, 1.0)
+                # attr might be a dataclass mapping type; try dict-like access
+                if hasattr(attr, 'get'):
+                    try:
+                        return attr.get(sub_key, 1.0)
+                    except Exception:
+                        return 1.0
+                return 1.0
+            else:
+                # scalar weight expected
+                if isinstance(attr, (int, float)):
+                    return float(attr)
+                # If attr is dict and no sub_key provided, it is not a scalar
+                return 1.0
+
+        # Fallback: if _reward_weights itself is a dict-like
+        if hasattr(self._reward_weights, 'get'):
+            if sub_key is not None:
+                nested = self._reward_weights.get(key, {})
+                if isinstance(nested, dict):
+                    return nested.get(sub_key, 1.0)
+                return 1.0
+            return self._reward_weights.get(key, 1.0)
+
+        # Ultimate fallback
+        return 1.0
     
     def _interpolate_weight(self, schedule: list, progress: float) -> float:
         """
@@ -231,14 +269,14 @@ class CurriculumImitationCallback(ImitationCustomLearningCallback):
                         # Nested dict (e.g., qpos_imitation_rewards)
                         for sub_key, sub_value in value.items():
                             # Apply weight to show actual contribution
-                            weight = self._reward_weights[key].get(sub_key, 1.0) if hasattr(self._reward_weights[key], 'get') else 1.0
+                            weight = self._get_weight_for(key, sub_key)
                             weighted_value = sub_value * weight
                             log_dict[f'reward_live/{key}/{sub_key}'] = weighted_value
                             log_dict[f'reward_live_raw/{key}/{sub_key}'] = sub_value  # Also log raw value
                             total_reward_live += weighted_value
                     else:
                         # Scalar value
-                        weight = self._reward_weights.get(key, 1.0) if hasattr(self._reward_weights, 'get') else 1.0
+                        weight = self._get_weight_for(key)
                         weighted_value = value * weight
                         log_dict[f'reward_live/{key}'] = weighted_value
                         log_dict[f'reward_live_raw/{key}'] = value  # Also log raw value
@@ -283,7 +321,7 @@ class CurriculumImitationCallback(ImitationCustomLearningCallback):
                 print(f"[DEBUG REWARD] {key} (dict): raw_sum={dict_sum_raw:.2f}, items={len(value)}")
                 for sub_key, sub_value in value.items():
                     # Apply weight
-                    weight = self._reward_weights[key].get(sub_key, 1.0) if hasattr(self._reward_weights[key], 'get') else 1.0
+                    weight = self._get_weight_for(key, sub_key)
                     weighted_value = sub_value * weight
                     dict_sum_weighted += weighted_value
                     reward_components[f'reward/{key}/{sub_key}'] = weighted_value
@@ -292,7 +330,7 @@ class CurriculumImitationCallback(ImitationCustomLearningCallback):
                 print(f"[DEBUG REWARD] {key} weighted_sum={dict_sum_weighted:.6f}")
             else:
                 # Scalar value (e.g., forward_reward, muscle_activation_penalty)
-                weight = self._reward_weights.get(key, 1.0) if hasattr(self._reward_weights, 'get') else 1.0
+                weight = self._get_weight_for(key)
                 weighted_value = value * weight
                 print(f"[DEBUG REWARD] {key} (scalar): raw={value:.4f}, weight={weight}, weighted={weighted_value:.6f}")
                 reward_components[f'reward/{key}'] = weighted_value

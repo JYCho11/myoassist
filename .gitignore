@@ -134,3 +134,7 @@ cma_dump/
 
 train_bash_script.md
 wandb/
+results/
+rl_train/results/
+rl_train/train_logs/
+cma_dump/
