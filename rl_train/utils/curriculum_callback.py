@@ -223,15 +223,23 @@ class CurriculumImitationCallback(ImitationCustomLearningCallback):
             log_dict = {**curriculum_metrics}
             
             # Add current reward accumulation (cumulative during rollout)
+            # Apply weights to show actual contribution to total reward
             if hasattr(self, 'reward_accumulate') and self.reward_accumulate:
                 for key, value in self.reward_accumulate.items():
                     if isinstance(value, dict):
                         # Nested dict (e.g., qpos_imitation_rewards)
                         for sub_key, sub_value in value.items():
-                            log_dict[f'reward_live/{key}/{sub_key}'] = sub_value
+                            # Apply weight to show actual contribution
+                            weight = self._reward_weights[key].get(sub_key, 1.0) if hasattr(self._reward_weights[key], 'get') else 1.0
+                            weighted_value = sub_value * weight
+                            log_dict[f'reward_live/{key}/{sub_key}'] = weighted_value
+                            log_dict[f'reward_live_raw/{key}/{sub_key}'] = sub_value  # Also log raw value
                     else:
                         # Scalar value
-                        log_dict[f'reward_live/{key}'] = value
+                        weight = self._reward_weights.get(key, 1.0) if hasattr(self._reward_weights, 'get') else 1.0
+                        weighted_value = value * weight
+                        log_dict[f'reward_live/{key}'] = weighted_value
+                        log_dict[f'reward_live_raw/{key}'] = value  # Also log raw value
             
             # Add training metrics if available from logger
             if self.logger is not None and hasattr(self.logger, 'name_to_value'):
@@ -264,16 +272,26 @@ class CurriculumImitationCallback(ImitationCustomLearningCallback):
         for key, value in self.reward_accumulate.items():
             if isinstance(value, dict):
                 # Nested dict (e.g., qpos_imitation_rewards)
-                dict_sum = sum(value.values())
-                print(f"[DEBUG REWARD] {key} (dict): sum={dict_sum:.2f}, items={len(value)}")
+                dict_sum_raw = sum(value.values())
+                dict_sum_weighted = 0.0
+                print(f"[DEBUG REWARD] {key} (dict): raw_sum={dict_sum_raw:.2f}, items={len(value)}")
                 for sub_key, sub_value in value.items():
-                    reward_components[f'reward/{key}/{sub_key}'] = sub_value
-                    total_reward += sub_value
+                    # Apply weight
+                    weight = self._reward_weights[key].get(sub_key, 1.0) if hasattr(self._reward_weights[key], 'get') else 1.0
+                    weighted_value = sub_value * weight
+                    dict_sum_weighted += weighted_value
+                    reward_components[f'reward/{key}/{sub_key}'] = weighted_value
+                    reward_components[f'reward_raw/{key}/{sub_key}'] = sub_value  # Also log raw
+                    total_reward += weighted_value
+                print(f"[DEBUG REWARD] {key} weighted_sum={dict_sum_weighted:.6f}")
             else:
                 # Scalar value (e.g., forward_reward, muscle_activation_penalty)
-                print(f"[DEBUG REWARD] {key} (scalar): {value:.4f}")
-                reward_components[f'reward/{key}'] = value
-                total_reward += value
+                weight = self._reward_weights.get(key, 1.0) if hasattr(self._reward_weights, 'get') else 1.0
+                weighted_value = value * weight
+                print(f"[DEBUG REWARD] {key} (scalar): raw={value:.4f}, weight={weight}, weighted={weighted_value:.6f}")
+                reward_components[f'reward/{key}'] = weighted_value
+                reward_components[f'reward_raw/{key}'] = value  # Also log raw
+                total_reward += weighted_value
         
         reward_components['reward/total'] = total_reward
         print(f"[DEBUG REWARD] Total reward: {total_reward:.2f}, components: {len(reward_components)}")
