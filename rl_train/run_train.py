@@ -257,7 +257,11 @@ def ppo_train_with_parameters(config, train_time_step, is_rendering_on, train_lo
     np.random.seed(seed)
 
     env = EnvironmentHandler.create_environment(config, is_rendering_on, use_dummy_vec_env=use_live_render)
-    model = EnvironmentHandler.get_stable_baselines3_model(config, env)
+    
+    # Set tensorboard log directory
+    tensorboard_log_dir = os.path.join(log_dir, "tensorboard")
+    
+    model = EnvironmentHandler.get_stable_baselines3_model(config, env, tensorboard_log=tensorboard_log_dir)
 
     EnvironmentHandler.updateconfig_from_model_policy(config, model)
 
@@ -268,6 +272,28 @@ def ppo_train_with_parameters(config, train_time_step, is_rendering_on, train_lo
     with open(os.path.join(log_dir, 'session_config.json'), 'w', encoding='utf-8') as file:
         json.dump(session_config_dict, file, ensure_ascii=False, indent=4)
 
+    # ========== WANDB INITIALIZATION (FRIEND'S STYLE) ==========
+    # Initialize WandB if enabled in config
+    wandb_run = None
+    if hasattr(config, 'wandb_params') and config.wandb_params.enabled:
+        import wandb
+        print(f"[WandB] Initializing from run_train.py...")
+        print(f"[WandB]   Project: {config.wandb_params.project}")
+        print(f"[WandB]   Run Name: {config.wandb_params.run_name}")
+        
+        wandb_run = wandb.init(
+            project=config.wandb_params.project,
+            name=config.wandb_params.run_name,
+            config=session_config_dict,
+            sync_tensorboard=True,
+            monitor_gym=True,
+            save_code=True,
+        )
+        print(f"[WandB] Initialization complete! Run URL: {wandb.run.url}")
+    else:
+        print(f"[WandB] Disabled or not configured in config file")
+    # ========== END WANDB INITIALIZATION ==========
+
     custom_callback = EnvironmentHandler.get_callback(config, train_log_handler)
 
     # ========== ADD LIVE RENDERING TOGGLE CALLBACK ==========
@@ -275,6 +301,18 @@ def ppo_train_with_parameters(config, train_time_step, is_rendering_on, train_lo
     from stable_baselines3.common.callbacks import CallbackList
     
     callbacks = [custom_callback]
+    
+    # Add WandB callback if wandb is initialized
+    if wandb_run is not None:
+        from wandb.integration.sb3 import WandbCallback
+        print(f"[WandB] Adding WandbCallback...")
+        wandb_callback = WandbCallback(
+            gradient_save_freq=100,
+            model_save_path=f"models/{wandb_run.id}",
+            verbose=2,
+        )
+        callbacks.append(wandb_callback)
+        print(f"[WandB] WandbCallback added")
     
     # Add live render toggle if not in rendering mode
     # NOTE: Auto-disabled if SubprocVecEnv (multiprocessing) is used
@@ -292,7 +330,15 @@ def ppo_train_with_parameters(config, train_time_step, is_rendering_on, train_lo
     callback_list = CallbackList(callbacks)
     # ========== END LIVE RENDERING ==========
 
-    model.learn(reset_num_timesteps=False, total_timesteps=train_time_step, log_interval=1, callback=callback_list, progress_bar=True)
+    # Start training with tensorboard logging
+    model.learn(
+        reset_num_timesteps=False, 
+        total_timesteps=train_time_step, 
+        log_interval=1, 
+        callback=callback_list, 
+        progress_bar=True,
+        tb_log_name="PPO"
+    )
     env.close()
     print("learning done!")
 
