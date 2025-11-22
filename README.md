@@ -11,3 +11,7 @@
 ### rl_train/results_251121[2D + hip adduction + hip rotation]
 - 2D 환경 + hip adduction joint, hip rotation joint 추가
 
+### rl_train/results_251122[2D + hip adduction + pelvis z trans]
+- 2D 환경 + hip adduction joint, hip rotation joint + pelvis z translation 추가
+
+
