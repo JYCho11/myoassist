@@ -88,7 +88,7 @@
             "knee_angle_l", "knee_angle_r",
             "hip_adduction_l", "hip_adduction_r",
             "hip_rotation_l", "hip_rotation_r",
-            "pelvis_tilt",
+            "pelvis_tilt","pelvis_list",
             "pelvis_ty", "pelvis_tz"
 
         ],
@@ -98,7 +98,7 @@
             "knee_angle_l", "knee_angle_r",
             "hip_adduction_l", "hip_adduction_r",
             "hip_rotation_l", "hip_rotation_r",
-            "pelvis_tilt", "pelvis_ty", "pelvis_tz"
+            "pelvis_tilt","pelvis_list", "pelvis_ty", "pelvis_tz"
         ],
 
         "observation_sensor_keys": ["r_foot", "l_foot", "r_toes", "l_toes"],
@@ -114,7 +114,7 @@
                                 "knee_angle_l", "knee_angle_r",
                                 "hip_adduction_l", "hip_adduction_r",
                                 "hip_rotation_l", "hip_rotation_r",
-                                "pelvis_tilt", "pelvis_ty", "pelvis_tz"],
+                                "pelvis_tilt", "pelvis_list", "pelvis_ty", "pelvis_tz"],
         "prev_trained_policy_path": null
     },
     "ppo_params": {
@@ -148,22 +148,23 @@
                         [
                             {
                                 "type":"range",
-                                "range":[0,13],
+                                "range":[0,14],
                                 "comment":"10 qpos without lumbar_extension (3D: +6 pelvis DOF, +6 hip DOF)"
                             },
                             {
                                 "type":"range",
-                                "range":[13,26],
+                                "range":[14,28],
                                 "comment":"10 qvel without lumbar_extension (3D: +6 pelvis DOF, +6 hip DOF)"
                             },
+
                             {
                                 "type":"range",
-                                "range":[26,52],
+                                "range":[28,54],
                                 "comment":"26 muscle activation"
                             },
                             {
                                 "type":"range",
-                                "range":[52,53],
+                                "range":[54,55],
                                 "comment":"target velocity"
                             }
                         ],
@@ -183,22 +184,22 @@
                     [
                         {
                             "type":"range",
-                            "range":[0,13],
-                            "comment":"10 qpos without lumbar_extension (3D: +6 pelvis DOF, +6 hip DOF)"
+                            "range":[0,14],
+                            "comment":"14 qpos without lumbar_extension (3D: +6 pelvis DOF, +6 hip DOF)"
                         },
                         {
                             "type":"range",
-                            "range":[13,26],
-                            "comment":"10 qvel without lumbar_extension (3D: +6 pelvis DOF, +6 hip DOF)"
+                            "range":[14,28],
+                            "comment":"14 qvel without lumbar_extension (3D: +6 pelvis DOF, +6 hip DOF)"
                         },
                         {
                             "type":"range",
-                            "range":[26,52],
+                            "range":[28,54],
                             "comment":"26 muscle activation"
                         },
                         {
                             "type":"range",
-                            "range":[52,53],
+                            "range":[54,55],
                             "comment":"target velocity"
                         }
                     ]
