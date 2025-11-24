@@ -202,13 +202,13 @@
         }
     },
     "reward_scale_factors": {
-        "description": "No normalization - friend's style with fixed weights",
-        "qpos_imitation_scale": 1.0,
-        "qvel_imitation_scale": 1.0,
+        "description": "Normalized scaling applied to friend's style config",
+        "qpos_imitation_scale": 0.00001,
+        "qvel_imitation_scale": 0.00001,
         "forward_reward_scale": 1.0,
-        "muscle_penalty_scale": 1.0,
-        "foot_force_penalty_scale": 1.0,
-        "note": "All scales set to 1.0, no curriculum adjustment"
+        "muscle_penalty_scale": 0.0000001,
+        "foot_force_penalty_scale": 0.00001,
+        "rationale": "Apply same normalization as curriculum config but without curriculum weighting"
     },
     "wandb_params": {
         "enabled": true,
